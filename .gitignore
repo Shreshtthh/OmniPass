@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+
+# Dependencies - Specify the path from the root
+/backend/node_modules
+/frontend/node_modules
+/contracts/node_modules
+
+# Build Artifacts
+/frontend/.next
+
+# IDE and OS specific files
+.vscode/
+.DS_Store
