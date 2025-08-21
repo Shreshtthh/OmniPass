@@ -1,27 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useAccount } from 'wagmi';
-import ConnectWallet from '@/app/components/ConnectWallet';
 import AnalysisResults from '@/app/components/AnalysisResults';
 import CredentialDisplay from '@/app/components/CredentialDisplay';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { APIService } from '@/lib/api';
 import { CrossChainAnalysis } from '@/types';
-import { Zap, Shield, BarChart3, Network } from 'lucide-react';
+import { Zap, Shield } from 'lucide-react';
 import Link from 'next/link';
+
+// Dynamically import to prevent hydration issues
+const DynamicConnectWallet = dynamic(() => import('@/app/components/ConnectWallet'), {
+  ssr: false,
+  loading: () => <div className="w-24 h-10 bg-gray-200 rounded animate-pulse"></div>
+});
+
+// CORRECTED API service with proper endpoint
+const APIService = {
+  analyzeUser: async (address: string): Promise<{ success: boolean; data?: CrossChainAnalysis; error?: string }> => {
+    try {
+      // CORRECTED: /api/analysis instead of /api/analyze
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/analysis/${address}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      // Backend returns {success: true, data: analysis}, so we need responseData.data
+      return { success: true, data: responseData.data };
+    } catch (error) {
+      console.error("API Service Error:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to fetch analysis from the server." 
+      };
+    }
+  }
+};
 
 export default function HomePage() {
   const { address, isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
   const [analysis, setAnalysis] = useState<CrossChainAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleAnalyze = async () => {
     if (!address) return;
 
     setLoading(true);
     setError(null);
+    setAnalysis(null);
     
     try {
       const response = await APIService.analyzeUser(address);
@@ -29,10 +70,10 @@ export default function HomePage() {
       if (response.success && response.data) {
         setAnalysis(response.data);
       } else {
-        setError(response.error || 'Analysis failed');
+        setError(response.error || 'Analysis failed. Please try again.');
       }
     } catch (err) {
-      setError('Failed to connect to analysis service');
+      setError('Failed to connect to the analysis service. Please check if your backend is running.');
       console.error('Analysis error:', err);
     } finally {
       setLoading(false);
@@ -44,13 +85,18 @@ export default function HomePage() {
     
     const credential = {
       address: analysis.address,
-      tier: analysis.accessLevel.tier,
-      qualified: analysis.accessLevel.qualifiesForAccess,
-      issuedAt: new Date().toISOString(),
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      signature: 'omnipass_demo_signature'
+      accessLevel: analysis.accessLevel,
+      riskScore: analysis.riskScore,
+      activityScore: analysis.activityScore,
+      totalValueLocked: analysis.totalValueLocked,
+      timestamp: new Date().toISOString(),
+      chains: analysis.chains.map(chain => ({
+        chainId: chain.chainId,
+        name: chain.name,
+        tvl: chain.tvl
+      }))
     };
-    
+
     const blob = new Blob([JSON.stringify(credential, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -62,27 +108,53 @@ export default function HomePage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleShareCredential = () => {
+  const handleShareCredential = async () => {
     if (!analysis) return;
     
-    const shareText = `I just got ${analysis.accessLevel.tier} tier access with OmniPass! 🚀 My cross-chain DeFi activity analysis shows $${analysis.totalValueLocked.toLocaleString()} TVL across multiple protocols.`;
-    
+    const shareText = `🔐 My OmniPass Credential:\n\n` +
+      `Access Level: ${analysis.accessLevel.tier}\n` +
+      `Risk Score: ${analysis.riskScore}/100\n` +
+      `Activity Score: ${analysis.activityScore}/100\n` +
+      `Total Value Locked: $${analysis.totalValueLocked.toFixed(2)}\n` +
+      `Active on ${analysis.chains.length} chains\n\n` +
+      `Generated via OmniPass Cross-Chain Analysis`;
+
     if (navigator.share) {
-      navigator.share({
-        title: 'OmniPass Credential',
-        text: shareText,
-        url: window.location.href
-      });
+      try {
+        await navigator.share({
+          title: 'My OmniPass Credential',
+          text: shareText,
+        });
+      } catch (err) {
+        console.log('Error sharing:', err);
+        fallbackShare(shareText);
+      }
     } else {
-      navigator.clipboard.writeText(shareText);
-      alert('Credential details copied to clipboard!');
+      fallbackShare(shareText);
     }
   };
 
+  const fallbackShare = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Credential details copied to clipboard!');
+    }).catch(() => {
+      alert('Unable to copy to clipboard. Please copy manually.');
+    });
+  };
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -95,10 +167,10 @@ export default function HomePage() {
               </div>
             </div>
             <nav className="flex items-center space-x-4">
-              <Link href="/demo" className="text-gray-600 hover:text-gray-900 font-medium">
-                Demo
+              <Link href="/" className="text-gray-600 hover:text-gray-900 font-medium">
+                Home
               </Link>
-              <ConnectWallet />
+              <DynamicConnectWallet />
             </nav>
           </div>
         </div>
@@ -108,7 +180,7 @@ export default function HomePage() {
         {!isConnected ? (
           // Welcome Section
           <div className="text-center py-16">
-            <div className="mb-8">
+             <div className="mb-8">
               <div className="w-24 h-24 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Shield className="w-12 h-12 text-white" />
               </div>
@@ -116,43 +188,9 @@ export default function HomePage() {
                 Universal Access Control for Web3
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-                Analyze your cross-chain DeFi activity to generate dynamic access credentials. 
-                Get verified based on your on-chain reputation across multiple protocols.
+                Analyze your cross-chain DeFi activity on Sepolia and Amoy testnets to generate dynamic access credentials.
               </p>
-              <ConnectWallet />
-            </div>
-
-            {/* Features Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-              <div className="text-center p-6">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Network className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Cross-Chain Analysis</h3>
-                <p className="text-gray-600">
-                  Analyze activity across Ethereum, BSC, Polygon and more to build comprehensive reputation
-                </p>
-              </div>
-              
-              <div className="text-center p-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="w-8 h-8 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered Insights</h3>
-                <p className="text-gray-600">
-                  Get detailed explanations of your DeFi activity and risk assessment with transparent AI analysis
-                </p>
-              </div>
-              
-              <div className="text-center p-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Dynamic Access Control</h3>
-                <p className="text-gray-600">
-                  Generate verifiable credentials that unlock access to exclusive protocols and opportunities
-                </p>
-              </div>
+              <DynamicConnectWallet />
             </div>
           </div>
         ) : (
@@ -164,7 +202,7 @@ export default function HomePage() {
                   Ready to Analyze Your Cross-Chain Activity
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  We will examine your DeFi positions across multiple chains to generate your access credential
+                  Our backend analysis engine will scan your on-chain activity across Sepolia and Amoy testnets to generate your access credential.
                 </p>
                 <button
                   onClick={handleAnalyze}
@@ -177,12 +215,10 @@ export default function HomePage() {
 
             {loading && (
               <div className="py-16">
-                <LoadingSpinner size="lg" message="Analyzing your cross-chain activity..." />
-                <div className="text-center mt-6 space-y-2">
-                  <p className="text-sm text-gray-600">✓ Connecting to Ethereum network</p>
-                  <p className="text-sm text-gray-600">✓ Fetching Aave lending positions</p>
-                  <p className="text-sm text-gray-600">✓ Analyzing BSC Venus protocol data</p>
-                  <p className="text-sm text-gray-600 animate-pulse">🤖 Running AI analysis...</p>
+                <LoadingSpinner size="lg" message="Analyzing your on-chain data..." />
+                 <div className="text-center mt-6 space-y-2 text-sm text-gray-600">
+                    <p>Scanning your activity across Sepolia and Amoy testnets...</p>
+                    <p>This may take a moment as we analyze your cross-chain interactions.</p>
                 </div>
               </div>
             )}
@@ -192,7 +228,7 @@ export default function HomePage() {
                 <p className="text-red-800 mb-4">{error}</p>
                 <button
                   onClick={handleAnalyze}
-                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200"
+                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg"
                 >
                   Try Again
                 </button>
@@ -213,18 +249,6 @@ export default function HomePage() {
           </div>
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-600">
-            <p>&copy; 2024 OmniPass. Built for cross-chain DeFi reputation.</p>
-            <p className="text-sm mt-2">
-              Demo application - Not for production use
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

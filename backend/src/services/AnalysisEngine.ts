@@ -12,74 +12,83 @@ export class AnalysisEngine {
   }
 
   async performCrossChainAnalysis(address: string): Promise<CrossChainAnalysis> {
-    console.log(`🔍 Starting analysis for address: ${address}`);
+    console.log(`🔍 Starting cross-chain analysis for address: ${address}`);
+    console.log(`📍 Analyzing Sepolia and Amoy testnets - REAL DATA ONLY`);
     
     try {
-      // Gather data from multiple chains
-      const [aaveData, venusData, ethBalance] = await Promise.all([
-        this.alchemyService.getAaveLendingData(address),
-        this.alchemyService.getVenusLendingData(address),
-        this.alchemyService.getEthereumBalance(address)
+      // Get ONLY real blockchain data (no mock Aave data)
+      const [sepoliaBalance, amoyBalance] = await Promise.all([
+        this.alchemyService.getSepoliaBalance(address),
+        this.alchemyService.getAmoyBalance(address)
       ]);
 
-      // Calculate metrics
-      const ethTvl = aaveData.totalSupplied;
-      const bscTvl = venusData.totalSupplied;
-      const totalTvl = ethTvl + bscTvl + (ethBalance * 2000); // Assume ETH = $2000
+      // Calculate TVL based on REAL balances only
+      const ethPrice = 2000; // Assume ETH = $2000
+      const maticPrice = 0.8; // Assume MATIC = $0.80
+      
+      const sepoliaTvl = sepoliaBalance * ethPrice;
+      const amoyTvl = amoyBalance * maticPrice;
+      const totalTvl = sepoliaTvl + amoyTvl;
 
+      console.log(`💰 REAL Sepolia: ${sepoliaBalance} ETH = $${sepoliaTvl.toFixed(2)}`);
+      console.log(`💰 REAL Amoy: ${amoyBalance} MATIC = $${amoyTvl.toFixed(2)}`);
+      console.log(`💰 REAL Total TVL: $${totalTvl.toFixed(2)} (NO MOCK DATA)`);
+
+      // Create chains data with REAL values only
       const chains: ChainData[] = [
         {
-          name: 'Ethereum',
-          chainId: 1,
-          tvl: ethTvl,
-          protocols: [
+          name: 'Sepolia',
+          chainId: 11155111,
+          tvl: sepoliaTvl,
+          protocols: sepoliaBalance > 0 ? [
             {
-              name: 'Aave V3',
-              tvl: aaveData.totalSupplied,
-              positions: aaveData.positions.length,
-              healthFactor: aaveData.healthFactor
+              name: 'Wallet Balance',
+              tvl: sepoliaTvl,
+              positions: 1,
+              healthFactor: 1.0 // N/A for wallet balances, set to neutral
             }
-          ]
+          ] : []
         },
         {
-          name: 'BSC',
-          chainId: 56,
-          tvl: bscTvl,
-          protocols: [
+          name: 'Polygon Amoy',
+          chainId: 80002,
+          tvl: amoyTvl,
+          protocols: amoyBalance > 0 ? [
             {
-              name: 'Venus Protocol',
-              tvl: venusData.totalSupplied,
-              positions: venusData.positions.length,
-              healthFactor: venusData.healthFactor
+              name: 'Wallet Balance',
+              tvl: amoyTvl,
+              positions: 1,
+              healthFactor: 1.0 // N/A for wallet balances, set to neutral
             }
-          ]
+          ] : []
         }
       ];
 
-      // Calculate scores
-      const riskScore = this.calculateRiskScore(aaveData.healthFactor, venusData.healthFactor);
+      // Calculate scores based on REAL data only
+      const riskScore = this.calculateRiskScoreFromTvl(totalTvl);
       const activityScore = this.calculateActivityScore(chains);
       const diversificationScore = this.calculateDiversificationScore(chains);
 
-      // Prepare data for AI analysis
+      // Prepare data for AI analysis with REAL values
       const aiAnalysisData = {
         address,
         totalTvl,
-        ethTvl,
-        bscTvl,
-        aaveHealth: aaveData.healthFactor,
-        venusHealth: venusData.healthFactor,
-        activePositions: aaveData.positions.length + venusData.positions.length,
-        chainCount: chains.filter(c => c.tvl > 0).length
+        sepoliaTvl,
+        amoyTvl,
+        sepoliaBalance,
+        amoyBalance,
+        activeChains: chains.filter(c => c.tvl > 0).length,
+        isTestnet: true,
+        dataSource: 'real_blockchain_only'
       };
 
       // Get AI insights
       const aiInsights = await this.geminiService.analyzeUserActivity(aiAnalysisData);
 
-      // Determine access level
-      const avgHealth = (aaveData.healthFactor + venusData.healthFactor) / 2;
-      const chainCount = chains.filter(c => c.tvl > 100).length;
-      const accessLevel = this.geminiService.determineAccessLevel(totalTvl, avgHealth, chainCount);
+      // Determine access level based on REAL data
+      const activeChainCount = chains.filter(c => c.tvl > 0).length;
+      const avgHealthFactor = 1.0; // Neutral for wallet balances
+      const accessLevel = this.geminiService.determineAccessLevel(totalTvl, avgHealthFactor, activeChainCount);
 
       const analysis: CrossChainAnalysis = {
         address,
@@ -92,50 +101,58 @@ export class AnalysisEngine {
         accessLevel
       };
 
-      console.log(`✅ Analysis completed for ${address}. TVL: $${totalTvl.toLocaleString()}, Tier: ${accessLevel.tier}`);
+      console.log(`✅ Cross-chain analysis completed for ${address}`);
+      console.log(`💰 REAL Total TVL: $${totalTvl.toLocaleString()}`);
+      console.log(`🏆 Access Tier: ${accessLevel.tier} (Based on real data)`);
+      console.log(`🌐 Active on ${activeChainCount} chains (Real balances only)`);
       
       return analysis;
+
     } catch (error) {
       console.error('Error in cross-chain analysis:', error);
       throw new Error('Failed to complete cross-chain analysis');
     }
   }
 
-  private calculateRiskScore(aaveHealth: number, venusHealth: number): number {
-    const avgHealth = (aaveHealth + venusHealth) / 2;
-    
-    if (avgHealth >= 2.0) return 90;
-    if (avgHealth >= 1.5) return 75;
-    if (avgHealth >= 1.3) return 60;
-    if (avgHealth >= 1.1) return 45;
-    return 25;
+  // NEW: Risk score based on actual TVL instead of health factors
+  private calculateRiskScoreFromTvl(totalTvl: number): number {
+    if (totalTvl >= 10000) return 95; // Very high TVL
+    if (totalTvl >= 5000) return 85;  // High TVL
+    if (totalTvl >= 1000) return 75;  // Good TVL
+    if (totalTvl >= 500) return 60;   // Moderate TVL
+    if (totalTvl >= 100) return 45;   // Low TVL
+    if (totalTvl >= 10) return 30;    // Very low TVL
+    return 15; // Minimal TVL
   }
 
   private calculateActivityScore(chains: ChainData[]): number {
     let score = 0;
     
     chains.forEach(chain => {
-      if (chain.tvl > 0) score += 20; // Base points for chain presence
-      
-      chain.protocols.forEach(protocol => {
-        if (protocol.tvl > 1000) score += 10;
-        if (protocol.positions > 1) score += 5;
-        if (protocol.tvl > 10000) score += 15;
-      });
+      if (chain.tvl > 0) {
+        score += 30; // Base points for having any balance on chain
+        
+        // Bonus points based on balance size
+        if (chain.tvl >= 1000) score += 25; // Significant balance
+        else if (chain.tvl >= 100) score += 15; // Moderate balance
+        else if (chain.tvl >= 10) score += 10; // Small balance
+      }
     });
 
     return Math.min(score, 100);
   }
 
   private calculateDiversificationScore(chains: ChainData[]): number {
-    const activeChains = chains.filter(c => c.tvl > 100).length;
-    const totalProtocols = chains.reduce((sum, chain) => 
-      sum + chain.protocols.filter(p => p.tvl > 0).length, 0
-    );
-
-    let score = activeChains * 25; // 25 points per active chain
-    score += Math.min(totalProtocols * 15, 50); // Max 50 points from protocols
-
-    return Math.min(score, 100);
+    const activeChains = chains.filter(c => c.tvl > 0).length;
+    
+    if (activeChains >= 2) {
+      // Multi-chain presence gets high score
+      return 80;
+    } else if (activeChains === 1) {
+      // Single chain gets moderate score
+      return 40;
+    }
+    
+    return 0; // No activity
   }
-} 
+}

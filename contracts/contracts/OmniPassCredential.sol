@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.7;
 
 import "@zetachain/protocol-contracts/contracts/zevm/SystemContract.sol";
 import "@zetachain/protocol-contracts/contracts/zevm/interfaces/zContract.sol";
@@ -11,10 +11,10 @@ import "./interfaces/IOmniPassCredential.sol";
  * @title OmniPassCredential
  * @dev Universal Contract for cross-chain DeFi reputation and access control
  * @notice This contract stores and manages user credentials based on cross-chain activity
+ * @notice Configured for ZetaChain testnet, Sepolia, and Amoy testnet
  */
 contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, ReentrancyGuard {
-    using CredentialLogic for CredentialLogic.UserData;
-
+   
     // State variables
     SystemContract public systemContract;
     
@@ -28,84 +28,35 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
     mapping(uint256 => ChainConfig) public supportedChains;
     uint256[] public activeChains;
     
-    // Tier requirements
+    // Tier requirements (adjusted for testnet)
     mapping(AccessTier => TierRequirements) public tierRequirements;
     
-    // Events
-    event CredentialIssued(
-        address indexed user,
-        AccessTier tier,
-        uint256 tvl,
-        uint256 riskScore,
-        uint256 expiresAt
-    );
-    
-    event CredentialRevoked(address indexed user, string reason);
-    
+    // Additional events (not in interface)
     event AnalyzerAuthorized(address indexed analyzer, bool authorized);
-    
     event ChainConfigUpdated(uint256 chainId, bool supported);
-
-    // Structs
-    struct Credential {
-        address user;
-        AccessTier tier;
-        uint256 totalValueLocked;
-        uint256 riskScore;
-        uint256 activityScore;
-        uint256 diversificationScore;
-        bytes32[] chainDataHashes;
-        bytes aiInsightsHash;
-        uint256 issuedAt;
-        uint256 expiresAt;
-        bool isValid;
-    }
-
-    struct TierRequirements {
-        uint256 minTVL;
-        uint256 minRiskScore;
-        uint256 minActivityScore;
-        uint256 minChains;
-        bool isActive;
-    }
-
-    struct ChainConfig {
-        string name;
-        bool supported;
-        uint256 weight; // For scoring calculation
-        string[] supportedProtocols;
-    }
-
-    struct CrossChainData {
-        uint256 chainId;
-        uint256 tvl;
-        uint256 positions;
-        bytes32 dataHash;
-        bytes signature;
-    }
-
+    
     // Modifiers
     modifier onlyAuthorizedAnalyzer() {
         require(authorizedAnalyzers[msg.sender], "Not authorized analyzer");
         _;
     }
-
+    
     modifier validCredential(address user) {
         require(credentials[user].isValid, "Invalid credential");
         require(block.timestamp < credentialExpiry[user], "Credential expired");
         _;
     }
-
+    
     constructor(address _systemContract) {
         systemContract = SystemContract(_systemContract);
         
-        // Initialize tier requirements
+        // Initialize tier requirements for testnet
         _initializeTierRequirements();
         
-        // Initialize supported chains
+        // Initialize supported testnet chains
         _initializeSupportedChains();
     }
-
+    
     /**
      * @dev ZetaChain Universal Contract entry point
      * @param context Cross-chain message context
@@ -135,32 +86,41 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
             revert("Invalid action");
         }
     }
-
+    
     /**
-     * @dev Issue a new credential based on cross-chain analysis
-     * @param user User address
-     * @param crossChainData Array of chain-specific data
-     * @param aiInsights AI analysis results hash
-     * @param signature Analyzer signature
+     * @dev Issue a new credential based on cross-chain analysis (Fixed for stack too deep)
      */
+    
     function issueCredential(
         address user,
         CrossChainData[] calldata crossChainData,
         bytes32 aiInsights,
         bytes calldata signature
-    ) external onlyAuthorizedAnalyzer nonReentrant {
+    ) external override onlyAuthorizedAnalyzer nonReentrant {
         require(user != address(0), "Invalid user address");
         require(crossChainData.length > 0, "No chain data provided");
         
-        // Verify signature and nonce
-        bytes32 nonce = keccak256(abi.encodePacked(user, block.timestamp, crossChainData));
+        // Verify signature and nonce (fixed)
+        bytes32 nonce = keccak256(abi.encodePacked(user, block.timestamp));
         require(!usedNonces[nonce], "Nonce already used");
         usedNonces[nonce] = true;
-
+        
+        // Move the credential creation to a separate function
+        _createAndStoreCredential(user, crossChainData, aiInsights);
+    }
+    
+    /**
+     * @dev New internal function to handle credential creation
+     */
+    function _createAndStoreCredential(
+        address user,
+        CrossChainData[] calldata crossChainData,
+        bytes32 aiInsights
+    ) internal {
         // Calculate aggregated scores
         (uint256 totalTVL, uint256 avgRiskScore, uint256 activityScore, uint256 diversificationScore) = 
             _calculateAggregatedScores(crossChainData);
-
+        
         // Determine access tier
         AccessTier tier = _determineAccessTier(
             totalTVL,
@@ -168,13 +128,30 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
             activityScore,
             crossChainData.length
         );
-
+        
+        // Create and store credential
+        _storeCredential(user, tier, totalTVL, avgRiskScore, activityScore, diversificationScore, crossChainData, aiInsights);
+    }
+    
+    /**
+     * @dev Helper function for credential storage
+     */
+    function _storeCredential(
+        address user,
+        AccessTier tier,
+        uint256 totalTVL,
+        uint256 avgRiskScore,
+        uint256 activityScore,
+        uint256 diversificationScore,
+        CrossChainData[] calldata crossChainData,
+        bytes32 aiInsights
+    ) internal {
         // Create chain data hashes
         bytes32[] memory chainHashes = new bytes32[](crossChainData.length);
         for (uint256 i = 0; i < crossChainData.length; i++) {
             chainHashes[i] = crossChainData[i].dataHash;
         }
-
+        
         // Store credential
         uint256 expiryTime = block.timestamp + 30 days;
         credentials[user] = Credential({
@@ -185,17 +162,53 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
             activityScore: activityScore,
             diversificationScore: diversificationScore,
             chainDataHashes: chainHashes,
-            aiInsightsHash: aiInsights,
+            aiInsightsHash: abi.encodePacked(aiInsights),
             issuedAt: block.timestamp,
             expiresAt: expiryTime,
             isValid: true
         });
         
         credentialExpiry[user] = expiryTime;
-
         emit CredentialIssued(user, tier, totalTVL, avgRiskScore, expiryTime);
     }
-
+    
+    /**
+     * @dev Helper for memory-based cross-chain data
+     */
+    function _storeCredentialFromMemory(
+        address user,
+        AccessTier tier,
+        uint256 totalTVL,
+        uint256 avgRiskScore,
+        uint256 activityScore,
+        uint256 diversificationScore,
+        CrossChainData[] memory crossChainData,
+        bytes32 aiInsights
+    ) internal {
+        bytes32[] memory chainHashes = new bytes32[](crossChainData.length);
+        for (uint256 i = 0; i < crossChainData.length; i++) {
+            chainHashes[i] = crossChainData[i].dataHash;
+        }
+        
+        uint256 expiryTime = block.timestamp + 30 days;
+        credentials[user] = Credential({
+            user: user,
+            tier: tier,
+            totalValueLocked: totalTVL,
+            riskScore: avgRiskScore,
+            activityScore: activityScore,
+            diversificationScore: diversificationScore,
+            chainDataHashes: chainHashes,
+            aiInsightsHash: abi.encodePacked(aiInsights),
+            issuedAt: block.timestamp,
+            expiresAt: expiryTime,
+            isValid: true
+        });
+        
+        credentialExpiry[user] = expiryTime;
+        emit CredentialIssued(user, tier, totalTVL, avgRiskScore, expiryTime);
+    }
+    
     /**
      * @dev Verify if a user has valid credentials for a specific tier
      * @param user User address
@@ -206,6 +219,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
     function verifyCredential(address user, AccessTier requiredTier) 
         external 
         view 
+        override
         returns (bool isValid, AccessTier userTier) 
     {
         Credential memory cred = credentials[user];
@@ -217,7 +231,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         bool hasAccess = uint8(cred.tier) >= uint8(requiredTier);
         return (hasAccess, cred.tier);
     }
-
+    
     /**
      * @dev Get detailed credential information
      * @param user User address
@@ -226,11 +240,12 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
     function getCredential(address user) 
         external 
         view 
+        override
         returns (Credential memory credential) 
     {
         return credentials[user];
     }
-
+    
     /**
      * @dev Check if credential qualifies for specific tier
      * @param tvl Total value locked
@@ -244,10 +259,10 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         uint256 riskScore,
         uint256 activityScore,
         uint256 chainCount
-    ) external view returns (AccessTier tier) {
+    ) external view override returns (AccessTier tier) {
         return _determineAccessTier(tvl, riskScore, activityScore, chainCount);
     }
-
+    
     /**
      * @dev Revoke a user's credential
      * @param user User address
@@ -255,6 +270,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
      */
     function revokeCredential(address user, string calldata reason) 
         external 
+        override
         onlyOwner 
     {
         require(credentials[user].isValid, "Credential not found");
@@ -264,7 +280,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         
         emit CredentialRevoked(user, reason);
     }
-
+    
     /**
      * @dev Authorize/deauthorize analyzer addresses
      * @param analyzer Analyzer address
@@ -277,7 +293,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         authorizedAnalyzers[analyzer] = authorized;
         emit AnalyzerAuthorized(analyzer, authorized);
     }
-
+    
     /**
      * @dev Update tier requirements
      * @param tier Access tier
@@ -289,7 +305,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
     {
         tierRequirements[tier] = requirements;
     }
-
+    
     /**
      * @dev Update supported chain configuration
      * @param chainId Chain ID
@@ -326,15 +342,15 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         
         emit ChainConfigUpdated(chainId, config.supported);
     }
-
+    
     /**
      * @dev Get list of active chain IDs
      * @return Array of supported chain IDs
      */
-    function getActiveChains() external view returns (uint256[] memory) {
+    function getActiveChains() external view override returns (uint256[] memory) {
         return activeChains;
     }
-
+    
     // Internal functions
     function _handleCredentialIssuance(zContext calldata context, bytes memory data) internal {
         // Decode cross-chain credential issuance request
@@ -345,7 +361,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         // In production, would include additional validation
         _issueCrossChainCredential(user, crossChainData, aiInsights);
     }
-
+    
     function _handleCredentialVerification(zContext calldata context, bytes memory data) internal {
         (address user, AccessTier requiredTier) = abi.decode(data, (address, AccessTier));
         
@@ -354,55 +370,35 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         // Return result to origin chain (implementation depends on ZetaChain specifics)
         // This would typically emit an event or call back to origin contract
     }
-
+    
     function _handleCredentialUpdate(zContext calldata context, bytes memory data) internal {
         // Handle credential updates from cross-chain calls
         // Implementation would depend on specific update requirements
     }
-
+    
+    /**
+     * @dev Fixed _issueCrossChainCredential function to use new helper
+     */
     function _issueCrossChainCredential(
         address user,
         CrossChainData[] memory crossChainData,
         bytes32 aiInsights
     ) internal {
-        // Simplified credential issuance for cross-chain calls
-        // Would include proper validation in production
-        
+        // Calculate aggregated scores
         (uint256 totalTVL, uint256 avgRiskScore, uint256 activityScore, uint256 diversificationScore) = 
             _calculateAggregatedScores(crossChainData);
-
+        
         AccessTier tier = _determineAccessTier(
             totalTVL,
             avgRiskScore,
             activityScore,
             crossChainData.length
         );
-
-        bytes32[] memory chainHashes = new bytes32[](crossChainData.length);
-        for (uint256 i = 0; i < crossChainData.length; i++) {
-            chainHashes[i] = crossChainData[i].dataHash;
-        }
-
-        uint256 expiryTime = block.timestamp + 30 days;
-        credentials[user] = Credential({
-            user: user,
-            tier: tier,
-            totalValueLocked: totalTVL,
-            riskScore: avgRiskScore,
-            activityScore: activityScore,
-            diversificationScore: diversificationScore,
-            chainDataHashes: chainHashes,
-            aiInsightsHash: aiInsights,
-            issuedAt: block.timestamp,
-            expiresAt: expiryTime,
-            isValid: true
-        });
         
-        credentialExpiry[user] = expiryTime;
-
-        emit CredentialIssued(user, tier, totalTVL, avgRiskScore, expiryTime);
+        // Use the same storage helper
+        _storeCredentialFromMemory(user, tier, totalTVL, avgRiskScore, activityScore, diversificationScore, crossChainData, aiInsights);
     }
-
+    
     function _calculateAggregatedScores(CrossChainData[] memory crossChainData)
         internal
         view
@@ -411,7 +407,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         uint256 weightedTVL = 0;
         uint256 totalWeight = 0;
         uint256 totalPositions = 0;
-
+        
         for (uint256 i = 0; i < crossChainData.length; i++) {
             CrossChainData memory data = crossChainData[i];
             ChainConfig memory config = supportedChains[data.chainId];
@@ -423,7 +419,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
                 totalPositions += data.positions;
             }
         }
-
+        
         totalTVL = totalWeight > 0 ? weightedTVL / totalWeight : 0;
         
         // Risk score based on TVL and diversification
@@ -435,25 +431,25 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         // Diversification score based on chain count and TVL distribution
         diversificationScore = _calculateDiversificationScore(crossChainData);
     }
-
+    
     function _calculateRiskScore(uint256 tvl, uint256 chainCount) internal pure returns (uint256) {
         uint256 baseScore = 50;
         
-        // TVL bonus (up to 30 points)
-        if (tvl >= 100000 ether) baseScore += 30;
-        else if (tvl >= 50000 ether) baseScore += 25;
-        else if (tvl >= 10000 ether) baseScore += 20;
-        else if (tvl >= 5000 ether) baseScore += 15;
-        else if (tvl >= 1000 ether) baseScore += 10;
+        // TVL bonus (adjusted for testnet - using smaller amounts)
+        if (tvl >= 10 ether) baseScore += 30;        // 10 ETH for testnet
+        else if (tvl >= 5 ether) baseScore += 25;    // 5 ETH for testnet
+        else if (tvl >= 1 ether) baseScore += 20;    // 1 ETH for testnet
+        else if (tvl >= 0.5 ether) baseScore += 15;  // 0.5 ETH for testnet
+        else if (tvl >= 0.1 ether) baseScore += 10;  // 0.1 ETH for testnet
         
         // Chain diversification bonus (up to 20 points)
-        if (chainCount >= 4) baseScore += 20;
-        else if (chainCount >= 3) baseScore += 15;
-        else if (chainCount >= 2) baseScore += 10;
+        if (chainCount >= 3) baseScore += 20;  // All 3 testnets
+        else if (chainCount >= 2) baseScore += 15;
+        else if (chainCount >= 1) baseScore += 10;
         
         return baseScore > 100 ? 100 : baseScore;
     }
-
+    
     function _calculateActivityScore(uint256 positions, uint256 chainCount) internal pure returns (uint256) {
         uint256 baseScore = 30;
         
@@ -465,7 +461,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         
         return baseScore > 100 ? 100 : baseScore;
     }
-
+    
     function _calculateDiversificationScore(CrossChainData[] memory crossChainData) 
         internal 
         pure 
@@ -473,7 +469,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
     {
         if (crossChainData.length <= 1) return 20;
         
-        uint256 baseScore = crossChainData.length * 20;
+        uint256 baseScore = crossChainData.length * 25; // Higher score for testnet
         
         // Check TVL distribution
         uint256 maxTVL = 0;
@@ -493,7 +489,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         
         return baseScore > 100 ? 100 : baseScore;
     }
-
+    
     function _determineAccessTier(
         uint256 tvl,
         uint256 riskScore,
@@ -539,10 +535,11 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         
         return AccessTier.NONE;
     }
-
+    
     function _initializeTierRequirements() internal {
+        // Adjusted for testnet with smaller TVL requirements
         tierRequirements[AccessTier.BRONZE] = TierRequirements({
-            minTVL: 1000 ether,
+            minTVL: 0.1 ether,    // 0.1 ETH for testnet
             minRiskScore: 40,
             minActivityScore: 30,
             minChains: 1,
@@ -550,7 +547,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         });
         
         tierRequirements[AccessTier.SILVER] = TierRequirements({
-            minTVL: 5000 ether,
+            minTVL: 0.5 ether,    // 0.5 ETH for testnet
             minRiskScore: 60,
             minActivityScore: 50,
             minChains: 1,
@@ -558,7 +555,7 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         });
         
         tierRequirements[AccessTier.GOLD] = TierRequirements({
-            minTVL: 25000 ether,
+            minTVL: 2 ether,      // 2 ETH for testnet
             minRiskScore: 75,
             minActivityScore: 65,
             minChains: 2,
@@ -566,40 +563,40 @@ contract OmniPassCredential is IOmniPassCredential, zContract, Ownable, Reentran
         });
         
         tierRequirements[AccessTier.PLATINUM] = TierRequirements({
-            minTVL: 100000 ether,
+            minTVL: 10 ether,     // 10 ETH for testnet
             minRiskScore: 85,
             minActivityScore: 80,
-            minChains: 3,
+            minChains: 3,         // All 3 testnets
             isActive: true
         });
     }
-
+    
     function _initializeSupportedChains() internal {
-        // Ethereum
-        supportedChains[1] = ChainConfig({
-            name: "Ethereum",
+        // Sepolia Ethereum Testnet
+        supportedChains[11155111] = ChainConfig({
+            name: "Sepolia",
             supported: true,
             weight: 100,
             supportedProtocols: new string[](0)
         });
-        activeChains.push(1);
+        activeChains.push(11155111);
         
-        // BSC
-        supportedChains[56] = ChainConfig({
-            name: "BSC",
+        // ZetaChain Athens Testnet
+        supportedChains[7001] = ChainConfig({
+            name: "ZetaChain Testnet",
+            supported: true,
+            weight: 100,
+            supportedProtocols: new string[](0)
+        });
+        activeChains.push(7001);
+        
+        // Polygon Amoy Testnet
+        supportedChains[80002] = ChainConfig({
+            name: "Polygon Amoy",
             supported: true,
             weight: 80,
             supportedProtocols: new string[](0)
         });
-        activeChains.push(56);
-        
-        // Polygon
-        supportedChains[137] = ChainConfig({
-            name: "Polygon",
-            supported: true,
-            weight: 70,
-            supportedProtocols: new string[](0)
-        });
-        activeChains.push(137);
+        activeChains.push(80002);
     }
 }

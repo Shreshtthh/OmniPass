@@ -1,5 +1,5 @@
 import { CrossChainAnalysis } from '@/types';
-import { formatCurrency, formatNumber, getScoreColor, getTierColor, getTierIcon } from '@/lib/utils';
+import { formatCurrency, getScoreColor, getTierColor, getTierIcon } from '@/lib/utils';
 import { BarChart3, Shield, Activity, PieChart, Brain } from 'lucide-react';
 
 interface AnalysisResultsProps {

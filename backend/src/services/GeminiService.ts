@@ -48,35 +48,41 @@ export class GeminiService {
     }
   }
 
-  private buildAnalysisPrompt(data: any): string {
-    return `
-Analyze this DeFi user's cross-chain activity and provide insights for access control decisions.
+private buildAnalysisPrompt(data: any): string {
+  return `
+Analyze this DeFi user's testnet wallet activity for access control decisions. This analysis is based on WALLET BALANCES ONLY from Sepolia and Polygon Amoy testnets.
 
-User Data:
+User Testnet Wallet Activity:
+
 - Address: ${data.address}
-- Ethereum TVL: $${data.ethTvl?.toLocaleString() || '0'}
-- BSC TVL: $${data.bscTvl?.toLocaleString() || '0'}
-- Total Portfolio: $${data.totalTvl?.toLocaleString() || '0'}
-- Aave Health Factor: ${data.aaveHealth || 'N/A'}
-- Venus Health Factor: ${data.venusHealth || 'N/A'}
-- Active Positions: ${data.activePositions || 0}
+- Sepolia Balance: ${data.sepoliaBalance || 0} ETH ($${data.sepoliaTvl?.toLocaleString() || '0'})
+- Amoy Balance: ${data.amoyBalance || 0} MATIC ($${data.amoyTvl?.toLocaleString() || '0'})
+- Total Portfolio Value: $${data.totalTvl?.toLocaleString() || '0'}
+- Active Chains: ${data.activeChains || 0}
+- Data Source: ${data.dataSource || 'wallet_balances_only'}
+- Environment: ${data.isTestnet ? 'Testnet (Demo)' : 'Production'}
+
+IMPORTANT: This analysis is based ONLY on wallet balances. No DeFi protocol usage (Aave, Compound, etc.) is detected or analyzed.
 
 Please provide analysis in this exact JSON format:
+
 {
-  "summary": "Brief overview of user's DeFi profile",
+  "summary": "Brief overview of user's testnet wallet holdings",
   "reasoning": ["Point 1", "Point 2", "Point 3"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
   "riskFactors": ["Risk 1", "Risk 2"]
 }
 
 Focus on:
-- Portfolio diversification across chains
-- Risk management (health factors)
-- Experience level based on protocol usage
-- Capital efficiency and position management
+- Wallet balance distribution across testnets
+- Cross-chain presence (holding tokens on multiple networks)
+- Portfolio size relative to testnet standards
+- NO MENTION of DeFi protocols like Aave, Compound, etc. (unless actually detected)
 
-Keep responses concise and actionable.`;
-  }
+Note: Adjust thresholds for testnet environment - smaller amounts are normal and acceptable.
+Keep responses concise and accurate to actual wallet activity only.`;
+}
+
 
   private parseAIResponse(aiText: string): AIInsights {
     try {
@@ -85,7 +91,7 @@ Keep responses concise and actionable.`;
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         return {
-          summary: parsed.summary || 'Analysis completed',
+          summary: parsed.summary || 'Testnet analysis completed',
           reasoning: parsed.reasoning || [],
           recommendations: parsed.recommendations || [],
           riskFactors: parsed.riskFactors || []
@@ -103,90 +109,120 @@ Keep responses concise and actionable.`;
   private parseUnstructuredResponse(text: string): AIInsights {
     // Simple text parsing as fallback
     return {
-      summary: 'AI analysis completed based on cross-chain DeFi activity.',
+      summary: 'AI analysis completed based on cross-chain testnet DeFi activity.',
       reasoning: [
-        'Portfolio shows cross-chain diversification',
-        'Lending positions indicate active DeFi participation',
-        'Health factors suggest responsible risk management'
+        'Portfolio shows cross-chain diversification between Sepolia and Amoy',
+        'Lending positions demonstrate multi-chain DeFi engagement',
+        'Health factors indicate understanding of risk management'
       ],
       recommendations: [
-        'Continue diversifying across multiple protocols',
-        'Monitor health factors regularly'
+        'Consider expanding testnet experiments to more protocols',
+        'Monitor health factors across different market conditions'
       ],
       riskFactors: [
-        'Market volatility affects collateral values',
-        'Smart contract risks across protocols'
+        'Testnet environments may not reflect mainnet behavior',
+        'Lower liquidity on testnets affects realistic testing'
       ]
     };
   }
 
   private getFallbackAnalysis(data: any): AIInsights {
-    const totalTvl = data.totalTvl || 0;
-    const hasMultiChain = (data.ethTvl > 0) && (data.bscTvl > 0);
-    const avgHealth = (data.aaveHealth + data.venusHealth) / 2;
+  const totalTvl = data.totalTvl || 0;
+  const hasMultiChain = (data.sepoliaTvl > 0) && (data.amoyTvl > 0);
+  const sepoliaBalance = data.sepoliaBalance || 0;
+  const amoyBalance = data.amoyBalance || 0;
 
-    let summary = '';
-    if (totalTvl > 50000) {
-      summary = 'High-value DeFi user with significant cross-chain exposure';
-    } else if (totalTvl > 10000) {
-      summary = 'Active DeFi participant with moderate portfolio size';
-    } else {
-      summary = 'Emerging DeFi user building cross-chain presence';
-    }
-
-    const reasoning = [
-      hasMultiChain ? 'Diversified across Ethereum and BSC networks' : 'Limited to single chain activity',
-      avgHealth > 1.5 ? 'Maintains healthy collateral ratios' : 'Moderate risk profile',
-      totalTvl > 1000 ? 'Demonstrates commitment to DeFi protocols' : 'Early stage user'
-    ];
-
-    const recommendations = totalTvl > 10000 
-      ? ['Consider expanding to additional L2 networks', 'Explore yield optimization strategies']
-      : ['Gradually increase position sizes', 'Maintain diverse protocol exposure'];
-
-    const riskFactors = avgHealth < 1.3 
-      ? ['Health factor approaching liquidation risk', 'High leverage exposure']
-      : ['Standard DeFi protocol risks', 'Market volatility exposure'];
-
-    return { summary, reasoning, recommendations, riskFactors };
+  let summary = '';
+  if (totalTvl > 5000) {
+    summary = 'Active testnet user with significant wallet balances across chains';
+  } else if (totalTvl > 1000) {
+    summary = 'Growing testnet portfolio showing multi-chain wallet management';
+  } else if (totalTvl > 100) {
+    summary = 'Moderate testnet wallet activity with basic cross-chain presence';
+  } else {
+    summary = 'Early-stage testnet user with minimal wallet balances';
   }
 
-  private getBasicInsights(): AIInsights {
-    return {
-      summary: 'Cross-chain DeFi activity analysis completed.',
-      reasoning: [
-        'Multi-protocol engagement detected',
-        'Risk management practices evaluated',
-        'Portfolio diversification assessed'
-      ],
-      recommendations: [
-        'Continue active DeFi participation',
-        'Monitor protocol health metrics'
-      ],
-      riskFactors: [
-        'Smart contract interaction risks',
-        'Market volatility exposure'
+  const reasoning = [
+    hasMultiChain 
+      ? `Successfully maintains balances on both Sepolia (${sepoliaBalance.toFixed(4)} ETH) and Amoy (${amoyBalance.toFixed(4)} MATIC)` 
+      : sepoliaBalance > 0 
+        ? `Holds ${sepoliaBalance.toFixed(4)} ETH on Sepolia testnet only`
+        : amoyBalance > 0 
+          ? `Holds ${amoyBalance.toFixed(4)} MATIC on Amoy testnet only`
+          : 'No significant testnet balances detected',
+    
+    totalTvl > 500 
+      ? 'Demonstrates commitment to testnet experimentation with meaningful balances' 
+      : 'Basic testnet wallet setup with minimal funding',
+    
+    hasMultiChain 
+      ? 'Shows understanding of multi-chain ecosystem by maintaining cross-chain balances'
+      : 'Limited to single-chain activity, potential for expansion'
+  ];
+
+  const recommendations = totalTvl > 1000
+    ? [
+        'Consider exploring DeFi protocols on testnets to maximize learning',
+        'Ready for mainnet activities with proper risk management'
       ]
-    };
-  }
+    : [
+        'Acquire more testnet funds to explore advanced features',
+        'Experiment with cross-chain bridges and DeFi protocols'
+      ];
+
+  const riskFactors = totalTvl < 100
+    ? [
+        'Limited testnet funding may restrict learning opportunities',
+        'Single-chain focus may limit multi-chain DeFi understanding'
+      ]
+    : [
+        'Standard testnet limitations apply',
+        'Testnet behavior may differ significantly from mainnet'
+      ];
+
+  return { summary, reasoning, recommendations, riskFactors };
+}
+
+
+private getBasicInsights(): AIInsights {
+  return {
+    summary: 'Cross-chain testnet wallet balance analysis completed.',
+    reasoning: [
+      'Wallet balances analyzed across Sepolia and Amoy testnets',
+      'Portfolio value calculated based on current testnet holdings',
+      'Cross-chain presence evaluated for multi-network understanding'
+    ],
+    recommendations: [
+      'Continue building testnet experience with various protocols',
+      'Maintain diverse wallet balances across different chains'
+    ],
+    riskFactors: [
+      'Testnet environments have limited real-world applicability',
+      'Wallet-only analysis may not reflect full DeFi engagement'
+    ]
+  };
+}
+
 
   determineAccessLevel(totalTvl: number, avgHealth: number, chainCount: number): AccessLevel {
-    if (totalTvl >= 100000 && avgHealth >= 2.0 && chainCount >= 2) {
+    // Adjusted thresholds for testnet environment (much lower than mainnet)
+    if (totalTvl >= 10000 && avgHealth >= 2.0 && chainCount >= 2) {
       return {
         tier: 'PLATINUM',
         qualifiesForAccess: true
       };
-    } else if (totalTvl >= 25000 && avgHealth >= 1.5 && chainCount >= 2) {
+    } else if (totalTvl >= 2500 && avgHealth >= 1.5 && chainCount >= 2) {
       return {
         tier: 'GOLD',
         qualifiesForAccess: true
       };
-    } else if (totalTvl >= 5000 && avgHealth >= 1.3) {
+    } else if (totalTvl >= 500 && avgHealth >= 1.3) {
       return {
         tier: 'SILVER',
         qualifiesForAccess: true
       };
-    } else if (totalTvl >= 1000) {
+    } else if (totalTvl >= 100) {
       return {
         tier: 'BRONZE',
         qualifiesForAccess: true
@@ -195,7 +231,7 @@ Keep responses concise and actionable.`;
       return {
         tier: 'BRONZE',
         qualifiesForAccess: false,
-        requiredTVL: 1000,
+        requiredTVL: 100,
         requiredScore: 50
       };
     }

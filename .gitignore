@@ -13,3 +13,15 @@
 # IDE and OS specific files
 .vscode/
 .DS_Store
+
+# Hardhat files
+/contracts/artifacts
+/contracts/cache
+/contracts/typechain-types
+/contracts/deployments
+
+# Node modules
+/node_modules
+
+# Log files
+*.log
