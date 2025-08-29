@@ -1,8 +1,10 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { sepolia, polygonAmoy } from 'wagmi/chains';
+// lib/wagmi.ts
+import { createConfig, http } from 'wagmi'
+import { sepolia, polygonAmoy } from 'wagmi/chains'
+import { injected, metaMask, walletConnect } from 'wagmi/connectors'
 
-// Add ZetaChain Athens 3 testnet for credential storage
-const zetaChainAthens3 = {
+// Define ZetaChain Athens 3 testnet
+export const zetaChainAthens3 = {
   id: 7001,
   name: 'ZetaChain Athens 3',
   nativeCurrency: {
@@ -26,12 +28,21 @@ const zetaChainAthens3 = {
   testnet: true,
 } as const;
 
-export const config = getDefaultConfig({
-  appName: 'OmniPass',
-  projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // Get this from WalletConnect Cloud
-  chains: [sepolia, polygonAmoy, zetaChainAthens3], // Only Ethereum-based testnets
-  ssr: true,
-});
+export const config = createConfig({
+  chains: [sepolia, polygonAmoy, zetaChainAthens3],
+  connectors: [
+    injected({ shimDisconnect: true }),
+    metaMask(),
+    walletConnect({
+      projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'demo',
+    }),
+  ],
+  transports: {
+    [sepolia.id]: http(`https://eth-sepolia.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`),
+    [polygonAmoy.id]: http(`https://polygon-amoy.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`),
+    [zetaChainAthens3.id]: http(),
+  },
+})
 
 export const supportedChains = [
   {
@@ -72,3 +83,6 @@ export const isSupportedChain = (chainId: number): boolean => {
 export const getChainInfo = (chainId: number) => {
   return supportedChains.find(chain => chain.id === chainId);
 };
+
+// Export for compatibility
+export { zetaChainAthens3 as zetachainTestnet };
