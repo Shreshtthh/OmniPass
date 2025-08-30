@@ -2,11 +2,14 @@ import express from 'express';
 import { AnalysisEngine } from '../services/AnalysisEngine';
 import { AlchemyService } from '../services/AlchemyService';
 import { AnalysisRequest, AnalysisResponse } from '../types';
+import { ContractService } from '../services/ContractService';
+import { ethers } from 'ethers';
 
 const router = express.Router();
 const analysisEngine = new AnalysisEngine();
+const contractService = new ContractService();
 
-// ADD THIS NEW ROUTE - GET analysis by address (matches frontend expectation)
+// GET analysis by address (matches frontend expectation)
 router.get('/:address', async (req: express.Request, res: express.Response) => {
   const startTime = Date.now();
   
@@ -54,6 +57,67 @@ router.get('/:address', async (req: express.Request, res: express.Response) => {
       processingTime: Date.now() - startTime
     };
     res.status(500).json(response);
+  }
+});
+
+// ✅ NEW: Issue credential endpoint
+router.post('/issue-credential', async (req: express.Request, res: express.Response) => {
+  const startTime = Date.now();
+  
+  try {
+    const { address } = req.body;
+    
+    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid Ethereum address is required',
+        processingTime: Date.now() - startTime
+      });
+    }
+
+    // Get user's analysis to determine tier
+    const analysis = await analysisEngine.performCrossChainAnalysis(address);
+    
+    console.log(`🏆 Issuing ${analysis.accessLevel.tier} credential for ${address}`);
+    
+    const crossChainData = analysis.chains.map(chain => ({
+      chainId: chain.chainId,
+      tvl: chain.tvl,
+      positions: chain.protocols.length,
+      dataHash: ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(chain)))
+    }));
+
+    // Create AI insights hash
+    const aiInsightsHash = ethers.keccak256(
+      ethers.toUtf8Bytes(JSON.stringify(analysis.aiInsights))
+    );
+
+    // ✅ CALL YOUR CONTRACT SERVICE
+    const txHash = await contractService.issueCredential(
+      address,
+      crossChainData,
+      aiInsightsHash
+    );
+    
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    res.json({
+      success: true,
+      transactionHash: txHash,
+      tier: analysis.accessLevel.tier,
+      processingTime: Date.now() - startTime,
+      network: 'zetachain-athens-testnet',
+      contractAddress: contractService.getContractAddress()
+    });
+    
+  } catch (error) {
+    console.error('Error issuing credential:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to issue credential on ZetaChain',
+      processingTime: Date.now() - startTime
+    });
   }
 });
 
