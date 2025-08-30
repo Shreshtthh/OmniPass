@@ -1,16 +1,26 @@
-import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { HeroSection } from '@/components/HeroSection';
 import { ResultsDashboard } from '@/components/ResultsDashboard';
 import { AICoach } from '@/components/AICoach';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { useWallet } from '@/hooks/use-wallet';
-import { useAnalysis } from '@/hooks/use-analysis';
+import { Award } from 'lucide-react';
+import { useAnalysisContext } from '@/contexts/AnalysisContext'; // ✅ Use context
 
 export default function Index() {
   const { address, isConnected, connectWallet } = useWallet();
-  const { analysis, loading, error, analyzeWallet } = useAnalysis();
-  const [showResults, setShowResults] = useState(false);
+  
+  // ✅ Get everything from context instead of local hooks/state
+  const { 
+    analysis, 
+    loading, 
+    error, 
+    showResults, 
+    isIssuing, 
+    txHash, 
+    analyzeWallet, 
+    issueCredential 
+  } = useAnalysisContext();
 
   const handleConnect = () => {
     connectWallet();
@@ -21,13 +31,17 @@ export default function Index() {
       alert('Please connect your wallet first');
       return;
     }
+    // ✅ Use context function
+    await analyzeWallet(address);
+  };
 
-    try {
-      await analyzeWallet(address);
-      setShowResults(true);
-    } catch (err) {
-      console.error('Analysis failed:', err);
+  const handleIssueCredential = async () => {
+    if (!address) {
+      alert('Please connect your wallet first');
+      return;
     }
+    // ✅ Use context function
+    await issueCredential(address);
   };
 
   const handleShare = () => {
@@ -63,9 +77,11 @@ export default function Index() {
     }
   };
 
+  console.log('🔍 Current txHash state:', txHash);
+  console.log('🔍 Current isIssuing state:', isIssuing);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-      {/* --- FIX: Only one Header component should be here --- */}
       <Header />
 
       {loading && (
@@ -76,7 +92,6 @@ export default function Index() {
         </div>
       )}
       
-      {/* --- FIX: The main content area, no longer duplicated --- */}
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
         {!showResults ? (
           <>
@@ -100,9 +115,35 @@ export default function Index() {
                 data={analysis}
                 onShare={handleShare}
                 onDownload={handleDownload}
+                onIssueCredential={handleIssueCredential}
+                isIssuing={isIssuing}
               />
             )}
-            <AICoach analysisData={analysis} />
+            
+            {/* ✅ Transaction Hash Display with corrected explorer URL */}
+            {txHash && (
+              <div className="glass rounded-2xl p-6 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                  <Award className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+                  ✅ Credential Issued Successfully!
+                </h3>
+                <p className="text-muted-foreground">
+                  Your OmniPass credential has been recorded on ZetaChain
+                </p>
+                <a 
+                  href={`https://zetachain-testnet.blockscout.com//tx/${txHash}`}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-medium hover:opacity-90 transition-opacity"
+                >
+                  View Transaction on ZetaChain Testnet Explorer →
+                </a>
+              </div>
+            )}
+            
+            <AICoach analysisData={analysis} userAddress={address} />
           </div>
         )}
       </main>

@@ -36,6 +36,15 @@ export interface AnalysisResponse {
   processingTime: number;
 }
 
+// ✅ NEW: Interface for credential issuance response
+export interface CredentialResponse {
+  success: boolean;
+  transactionHash?: string;
+  tier?: string;
+  error?: string;
+  processingTime?: number;
+}
+
 // Custom error class for better error handling
 class ApiError extends Error {
   status: number;
@@ -126,20 +135,46 @@ export class OmniPassAPI {
     }
   }
 
-  static async issueCredential(address: string): Promise<any> {
+  // ✅ NEW: Issue credential method
+  static async issueCredential(address: string): Promise<CredentialResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analysis/issue-credential/${address}`, {
+      if (!address || !address.startsWith('0x') || address.length !== 42) {
+        throw new Error('Invalid wallet address format');
+      }
+
+      console.log('🏆 Requesting credential issuance for:', address);
+      
+      const response = await fetch(`${API_BASE_URL}/api/analysis/issue-credential`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({ address }),
+        signal: AbortSignal.timeout(300000), // 15 second timeout
       });
 
-      return await this.handleResponse(response);
+      const data = await this.handleResponse<CredentialResponse>(response);
+      console.log('✅ Credential response:', data);
+      return data;
       
     } catch (error) {
       console.error('❌ Credential issuance error:', error);
+      
+      if (error instanceof ApiError) {
+        switch (error.status) {
+          case 400:
+            throw new Error('Invalid request. Please try again');
+          case 404:
+            throw new Error('Address not found or no analysis available');
+          case 429:
+            throw new Error('Too many requests. Please wait before trying again');
+          case 500:
+            throw new Error('Server error during credential issuance');
+          default:
+            throw new Error(`Credential issuance failed: ${error.message}`);
+        }
+      }
+      
       throw new Error('Failed to issue credential. Please try again');
     }
   }

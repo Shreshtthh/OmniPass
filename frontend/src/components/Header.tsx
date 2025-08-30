@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom'; // ✅ Import routing
 import { Button } from '@/components/ui/button';
 import { Wallet, ChevronDown, ExternalLink } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
@@ -6,6 +7,7 @@ import { useWallet } from '@/hooks/use-wallet';
 export const Header = () => {
   const { address, isConnected, connectWallet, disconnect, sepoliaBalance, amoyBalance } = useWallet();
   const [showDropdown, setShowDropdown] = useState(false);
+  const location = useLocation(); // ✅ Get current route
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -20,21 +22,39 @@ export const Header = () => {
     <header className="w-full border-b border-border/50 backdrop-blur-xl bg-background/50 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center space-x-3">
+        <Link to="/" className="flex items-center space-x-3"> {/* ✅ Make logo clickable */}
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
             <div className="w-4 h-4 rounded-sm bg-white/90" />
           </div>
           <span className="text-xl font-bold text-gradient">OmniPass</span>
-        </div>
+        </Link>
 
-        {/* Navigation */}
+        {/* ✅ Updated Navigation with proper routing */}
         <nav className="hidden md:flex items-center space-x-8">
-          <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link 
+            to="/"
+            className={`text-sm font-medium transition-colors hover:text-foreground ${
+              location.pathname === '/' ? 'text-foreground' : 'text-muted-foreground'
+            }`}
+          >
             Dashboard
-          </a>
-          <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+          </Link>
+          <Link 
+            to="/credentials"
+            className={`text-sm font-medium transition-colors hover:text-foreground ${
+              location.pathname === '/credentials' ? 'text-foreground' : 'text-muted-foreground'
+            }`}
+          >
             Credentials
-          </a>
+          </Link>
+          <Link 
+            to="/demo"
+            className={`text-sm font-medium transition-colors hover:text-foreground ${
+              location.pathname === '/demo' ? 'text-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            Demo
+          </Link>
           <a 
             href="https://github.com/Shreshtthh/OmniPass" 
             target="_blank" 
@@ -45,7 +65,7 @@ export const Header = () => {
           </a>
         </nav>
 
-        {/* Wallet Connection */}
+        {/* Wallet Connection - unchanged */}
         <div className="relative">
           {!isConnected ? (
             <Button onClick={connectWallet} className="btn-gradient">

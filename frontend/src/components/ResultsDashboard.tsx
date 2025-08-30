@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Share2, Shield, Activity, PieChart, DollarSign, Sparkles, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
+import { Download, Share2, Shield, Activity, PieChart, DollarSign, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Award } from 'lucide-react';
 
 // Updated interface to match backend response structure
 interface CrossChainAnalysis {
@@ -35,11 +35,13 @@ interface CrossChainAnalysis {
 }
 
 interface ResultsDashboardProps {
-  data: CrossChainAnalysis | null; // Allow null for loading states
+  data: CrossChainAnalysis | null;
   isLoading?: boolean;
   error?: string | null;
   onShare: () => void;
   onDownload: () => void;
+  onIssueCredential: () => void; // ✅ NEW: Issue credential handler
+  isIssuing?: boolean; // ✅ NEW: Loading state for credential issuance
 }
 
 export const ResultsDashboard = ({ 
@@ -47,7 +49,9 @@ export const ResultsDashboard = ({
   isLoading = false, 
   error = null, 
   onShare, 
-  onDownload
+  onDownload,
+  onIssueCredential, // ✅ NEW
+  isIssuing = false // ✅ NEW
 }: ResultsDashboardProps) => {
   // Handle loading state
   if (isLoading) {
@@ -133,6 +137,16 @@ export const ResultsDashboard = ({
           </p>
         </div>
         <div className="flex space-x-3">
+          {/* ✅ NEW: Issue Credential Button */}
+          <Button 
+            onClick={onIssueCredential} 
+            className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+            disabled={isIssuing}
+          >
+            <Award className="w-4 h-4 mr-2" />
+            {isIssuing ? 'Issuing...' : 'Issue Credential'}
+          </Button>
+          
           <Button onClick={onShare} variant="outline" className="glass border-white/20">
             <Share2 className="w-4 h-4 mr-2" />
             Share
