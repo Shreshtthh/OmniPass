@@ -15,7 +15,7 @@ export default function Demo() {
   
   const walletAddress = searchParams.get('address') || '0x92CbB44A94BEf56944929e25077F3A4F4F7B95E6';
   
-  // Define all benefits with their unlock tiers
+  // Define all benefits with unlock tiers
   const allBenefits = [
     // Bronze Tier Benefits
     {
@@ -124,7 +124,9 @@ export default function Demo() {
     OmniPassAPI.analyzeWallet(walletAddress)
       .then(data => {
         setAnalysis(data);
-        console.log('📊 Analysis loaded for demo:', data);
+        console.log('📊 Full Analysis Response:', data);
+        console.log('🏆 User Tier from API:', data?.data?.accessLevel?.tier);
+        setError(null);
       })
       .catch(err => {
         setError(err.message);
@@ -153,19 +155,22 @@ export default function Demo() {
     }
   };
 
-  // Check if user has unlocked a specific benefit
+  // Check if user has unlocked a specific benefit - with improved case handling
   const isBenefitUnlocked = (benefitTier: string, userTier: string) => {
-    return tierRank[userTier] >= tierRank[benefitTier];
+    if (!benefitTier || !userTier) {
+      console.warn('Missing tier data:', { benefitTier, userTier });
+      return false;
+    }
+    
+    // Normalize to uppercase for comparison
+    const normalizedBenefitTier = benefitTier.toUpperCase();
+    const normalizedUserTier = userTier.toUpperCase();
+    
+    const result = tierRank[normalizedUserTier] >= tierRank[normalizedBenefitTier];
+    console.log(`🔍 Unlock check: ${benefitTier} vs ${userTier} = ${result}`);
+    
+    return result;
   };
-
-  // Filter benefits into unlocked and locked
-  const unlockedBenefits = allBenefits.filter(benefit => 
-    isBenefitUnlocked(benefit.unlockTier, analysis?.data?.accessLevel?.tier || 'BRONZE')
-  );
-  
-  const lockedBenefits = allBenefits.filter(benefit => 
-    !isBenefitUnlocked(benefit.unlockTier, analysis?.data?.accessLevel?.tier || 'BRONZE')
-  );
 
   if (loading) {
     return (
@@ -219,6 +224,24 @@ export default function Demo() {
   const userTier = analysis.data.accessLevel.tier;
   const TierIcon = getTierIcon(userTier);
 
+  // Debug logging
+  console.log('🎯 Current User Tier:', userTier);
+  console.log('📋 Available Benefits:');
+  allBenefits.forEach((benefit, index) => {
+    const unlocked = isBenefitUnlocked(benefit.unlockTier, userTier);
+    console.log(`${index + 1}. ${benefit.benefit} (${benefit.unlockTier}) - ${unlocked ? '✅ UNLOCKED' : '🔒 LOCKED'}`);
+  });
+
+  // Filter benefits for summary
+  const unlockedBenefits = allBenefits.filter(benefit => 
+    isBenefitUnlocked(benefit.unlockTier, userTier)
+  );
+  const lockedBenefits = allBenefits.filter(benefit => 
+    !isBenefitUnlocked(benefit.unlockTier, userTier)
+  );
+
+  console.log(`📊 Summary: ${unlockedBenefits.length} unlocked, ${lockedBenefits.length} locked`);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
       <Header />
@@ -260,7 +283,7 @@ export default function Demo() {
           </p>
         </div>
 
-        {/* All Benefits - Single Section */}
+        {/* All Benefits Overview */}
         <Card className="glass border-0">
           <CardHeader className="text-center pb-8">
             <CardTitle className="text-3xl font-bold">
