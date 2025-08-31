@@ -1,27 +1,69 @@
+import { useAccount } from 'wagmi';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Award, Star, Crown, Zap, Shield, TrendingUp, CheckCircle, Gift, Lock, Unlock, Loader } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { OmniPassAPI, AnalysisResponse } from '@/lib/api';
 import { useSearchParams } from 'react-router-dom';
 
 export default function Demo() {
+  const { address: connectedAddress } = useAccount();
   const [searchParams] = useSearchParams();
+  
+  // Extract URL parameter once outside the effect
+  const walletAddressParam = searchParams.get('address');
+  const fallbackAddress = '0x92CbB44A94BEf56944929e25077F3A4F4F7B95E6';
+  
+  // Memoize the computed wallet address to avoid unnecessary re-renders
+  const computedWalletAddress = useMemo(() => {
+    return walletAddressParam || connectedAddress || fallbackAddress;
+  }, [walletAddressParam, connectedAddress, fallbackAddress]);
+  
+  const [walletAddress, setWalletAddress] = useState(computedWalletAddress);
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Main analysis effect - depends only on walletAddress state
+  useEffect(() => {
+    if (!walletAddress) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    console.log('🔍 Analyzing wallet address:', walletAddress);
+    
+    OmniPassAPI.analyzeWallet(walletAddress)
+      .then(data => {
+        setAnalysis(data);
+        console.log('📊 Full Analysis Response:', data);
+        console.log('🏆 User Tier from API:', data?.data?.accessLevel?.tier);
+        setError(null);
+      })
+      .catch(err => {
+        setError(err.message);
+        console.error('❌ Demo analysis error:', err);
+      })
+      .finally(() => setLoading(false));
+  }, [walletAddress]);
+
+  // ✅ FIXED: Sync computed wallet address to state
+  useEffect(() => {
+    if (computedWalletAddress !== walletAddress) {
+      setWalletAddress(computedWalletAddress);
+    }
+  }, [computedWalletAddress, walletAddress]);
+
+  // ... rest of your component (benefits, tier functions, etc.)
   
-  const walletAddress = searchParams.get('address') || '0x92CbB44A94BEf56944929e25077F3A4F4F7B95E6';
-  
-  // Define all benefits with unlock tiers
   const allBenefits = [
     // Bronze Tier Benefits
     {
       protocol: 'Aave',
       icon: '🏦',
-      benefit: 'Basic Rate Discount',
+      benefit: 'Basic Rate Discount', 
       description: '2% discount on borrowing rates',
       unlockTier: 'BRONZE'
     },
@@ -115,26 +157,6 @@ export default function Demo() {
     'PLATINUM': 4 
   };
 
-  useEffect(() => {
-    if (!walletAddress) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    OmniPassAPI.analyzeWallet(walletAddress)
-      .then(data => {
-        setAnalysis(data);
-        console.log('📊 Full Analysis Response:', data);
-        console.log('🏆 User Tier from API:', data?.data?.accessLevel?.tier);
-        setError(null);
-      })
-      .catch(err => {
-        setError(err.message);
-        console.error('❌ Demo analysis error:', err);
-      })
-      .finally(() => setLoading(false));
-  }, [walletAddress]);
-
   const getTierColor = (tier: string) => {
     switch (tier) {
       case 'BRONZE': return 'from-amber-500 to-orange-600';
@@ -155,23 +177,16 @@ export default function Demo() {
     }
   };
 
-  // Check if user has unlocked a specific benefit - with improved case handling
   const isBenefitUnlocked = (benefitTier: string, userTier: string) => {
-    if (!benefitTier || !userTier) {
-      console.warn('Missing tier data:', { benefitTier, userTier });
-      return false;
-    }
+    if (!benefitTier || !userTier) return false;
     
-    // Normalize to uppercase for comparison
     const normalizedBenefitTier = benefitTier.toUpperCase();
     const normalizedUserTier = userTier.toUpperCase();
     
-    const result = tierRank[normalizedUserTier] >= tierRank[normalizedBenefitTier];
-    console.log(`🔍 Unlock check: ${benefitTier} vs ${userTier} = ${result}`);
-    
-    return result;
+    return tierRank[normalizedUserTier] >= tierRank[normalizedBenefitTier];
   };
 
+  // Loading, error, and no data states remain the same...
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
@@ -213,7 +228,12 @@ export default function Demo() {
         <main className="max-w-7xl mx-auto px-6 py-12 flex items-center justify-center">
           <Card className="glass border-0 p-8 text-center">
             <h2 className="text-xl font-semibold">No Analysis Data</h2>
-            <p className="text-muted-foreground mb-4">Please analyze a wallet first</p>
+            <p className="text-muted-foreground mb-4">
+              {!connectedAddress ? 
+                "Please connect your wallet to view benefits" : 
+                "Please analyze a wallet first"
+              }
+            </p>
             <Button onClick={() => window.location.href = '/'}>Go to Analysis</Button>
           </Card>
         </main>
@@ -224,23 +244,12 @@ export default function Demo() {
   const userTier = analysis.data.accessLevel.tier;
   const TierIcon = getTierIcon(userTier);
 
-  // Debug logging
-  console.log('🎯 Current User Tier:', userTier);
-  console.log('📋 Available Benefits:');
-  allBenefits.forEach((benefit, index) => {
-    const unlocked = isBenefitUnlocked(benefit.unlockTier, userTier);
-    console.log(`${index + 1}. ${benefit.benefit} (${benefit.unlockTier}) - ${unlocked ? '✅ UNLOCKED' : '🔒 LOCKED'}`);
-  });
-
-  // Filter benefits for summary
   const unlockedBenefits = allBenefits.filter(benefit => 
     isBenefitUnlocked(benefit.unlockTier, userTier)
   );
   const lockedBenefits = allBenefits.filter(benefit => 
     !isBenefitUnlocked(benefit.unlockTier, userTier)
   );
-
-  console.log(`📊 Summary: ${unlockedBenefits.length} unlocked, ${lockedBenefits.length} locked`);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
