@@ -18,14 +18,18 @@ export const useAICoach = (address?: string) => {
   const [questions, setQuestions] = useState<CoachQuestion[]>([]);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [currentResponse, setCurrentResponse] = useState<CoachResponse | null>(null);
-  const [loading, setLoading] = useState<boolean> (false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ FIX: Use environment variable for API base URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   // Fetch available questions when address changes
   useEffect(() => {
     if (!address) return;
 
-    fetch(`/api/coach/questions/${address}`)
+    // ✅ FIX: Use full API_BASE_URL
+    fetch(`${API_BASE_URL}/api/coach/questions/${address}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -43,7 +47,8 @@ export const useAICoach = (address?: string) => {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:3001/api/coach/ask', {
+      // ✅ FIX: Use API_BASE_URL instead of hardcoded localhost
+      const response = await fetch(`${API_BASE_URL}/api/coach/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questionId, customQuestion, address }),
