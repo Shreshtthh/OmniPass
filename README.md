@@ -6,6 +6,7 @@
 
 **Live:** [OmniPass](https://omni-pass.vercel.app/)  
 **Youtube Video:** [OmniPass Youtube](https://youtu.be/PxBrzH0DRJw)
+
 **Submission for the ZetaChain x Google Cloud Buildathon**
 
 OmniPass is a revolutionary cross-chain reputation protocol that leverages AI to analyze DeFi activity across multiple blockchains, generating comprehensive, non-transferable credentials that unlock personalized Web3 experiences.
