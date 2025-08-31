@@ -323,12 +323,12 @@ export default function Demo() {
           </CardContent>
         </Card>
 
-        {/* Next Tier Preview */}
+        {/* Next Tier Preview - UPDATED COLORS */}
         {nextTierBenefits.length > 0 && (
           <Card className="glass border-0">
             <CardHeader className="text-center pb-8">
               <div className="flex items-center justify-center space-x-3 mb-4">
-                <Lock className="w-8 h-8 text-amber-500" />
+                <Lock className="w-8 h-8 text-primary" />
                 <CardTitle className="text-3xl font-bold">
                   Unlock More Benefits
                 </CardTitle>
@@ -341,11 +341,11 @@ export default function Demo() {
             <CardContent>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {nextTierBenefits.slice(0, 6).map((benefit, index) => (
-                  <Card key={index} className="border border-amber-200 bg-amber-50/30 dark:bg-amber-900/10 dark:border-amber-800 opacity-75">
+                  <Card key={index} className="border border-primary/40 bg-primary/10 dark:bg-primary/20 dark:border-primary/60">
                     <CardContent className="p-6 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <span className="text-2xl opacity-60">{benefit.icon}</span>
+                          <span className="text-2xl">{benefit.icon}</span>
                           <div>
                             <h4 className="font-semibold text-foreground">{benefit.protocol}</h4>
                             <Badge className={`text-xs bg-gradient-to-r ${getTierColor(benefit.tier)} text-white`}>
@@ -353,11 +353,11 @@ export default function Demo() {
                             </Badge>
                           </div>
                         </div>
-                        <Lock className="w-6 h-6 text-amber-500" />
+                        <Lock className="w-6 h-6 text-primary" />
                       </div>
                       
                       <div>
-                        <h5 className="font-medium text-amber-700 dark:text-amber-300">{benefit.benefit}</h5>
+                        <h5 className="font-medium text-primary">{benefit.benefit}</h5>
                         <p className="text-sm text-muted-foreground mt-1">{benefit.description}</p>
                       </div>
                     </CardContent>
@@ -366,7 +366,10 @@ export default function Demo() {
               </div>
 
               <div className="text-center mt-8">
-                <Button className="btn-gradient text-lg px-8 py-3" onClick={() => window.location.href = '/'}>
+                <Button 
+                  className="btn-gradient text-lg px-8 py-3 min-w-[200px]" 
+                  onClick={() => window.location.href = '/'}
+                >
                   Improve My Score
                   <TrendingUp className="w-5 h-5 ml-2" />
                 </Button>
@@ -375,19 +378,24 @@ export default function Demo() {
           </Card>
         )}
 
-        {/* Call to Action */}
+        {/* Call to Action - UPDATED BUTTON LAYOUT */}
         <Card className="glass border-0 text-center">
           <CardContent className="py-12 space-y-6">
             <h2 className="text-3xl font-bold">Start Using Your Benefits</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Your {userTier} tier credentials are ready to use. Connect to partner protocols and claim your exclusive benefits.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button className="btn-gradient text-lg px-8 py-3">
+            
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+              <Button className="btn-gradient text-lg px-8 py-3 min-w-[200px]">
                 <Gift className="w-5 h-5 mr-2" />
                 Claim Benefits
               </Button>
-              <Button variant="outline" className="glass border-white/20 text-lg px-8 py-3" onClick={() => window.location.href = '/'}>
+              <Button 
+                variant="outline" 
+                className="glass border-white/20 text-lg px-8 py-3 min-w-[200px]" 
+                onClick={() => window.location.href = '/'}
+              >
                 Analyze Another Wallet
               </Button>
             </div>
