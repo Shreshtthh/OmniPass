@@ -4,7 +4,7 @@
 [![Google Cloud](https://img.shields.io/badge/Powered%20by-Google%20Gemini-red)](https://cloud.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Live Demo:** [Coming Soon](https://omnipass.xyz)  
+**Live Demo:** [OmniPass](https://omni-pass.vercel.app/)  
 **Submission for the ZetaChain x Google Cloud Buildathon**
 
 OmniPass is a revolutionary cross-chain reputation protocol that leverages AI to analyze DeFi activity across multiple blockchains, generating comprehensive, non-transferable credentials that unlock personalized Web3 experiences.
@@ -743,24 +743,3 @@ furnished to do so, subject to the following conditions...
 ```
 
 ---
-
-## 📞 Contact & Support
-
-- **Website**: [omnipass.xyz](https://omnipass.xyz)
-- **GitHub**: [github.com/omnipass-protocol](https://github.com/omnipass-protocol)
-- **Twitter**: [@OmniPassHQ](https://twitter.com/OmniPassHQ)
-- **Discord**: [OmniPass Community](https://discord.gg/omnipass)
-- **Email**: team@omnipass.xyz
-
-### Community
-
-Join our growing community of developers, users, and DeFi enthusiasts:
-
-- 💬 **Discord**: Daily discussions and support
-- 🐦 **Twitter**: Latest updates and announcements  
-- 📝 **Blog**: Technical deep-dives and tutorials
-- 🎥 **YouTube**: Video guides and demos
-
----
-
-**Built with ❤️ for the future of cross-chain DeFi**
