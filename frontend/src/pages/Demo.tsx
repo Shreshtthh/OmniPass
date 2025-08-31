@@ -13,10 +13,8 @@ export default function Demo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Get address from URL params or use a default demo address
   const walletAddress = searchParams.get('address') || '0x92CbB44A94BEf56944929e25077F3A4F4F7B95E6';
   
-  // Define tier benefits (keep as reference data)
   const tierBenefits = {
     BRONZE: [
       {
@@ -112,7 +110,6 @@ export default function Demo() {
     ]
   };
 
-  // Fetch analysis data
   useEffect(() => {
     if (!walletAddress) return;
     
@@ -157,7 +154,6 @@ export default function Demo() {
     const userTier = analysis.data.accessLevel.tier;
     const allBenefits = [];
     
-    // Add benefits based on tier (cumulative)
     if (['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'].includes(userTier)) {
       allBenefits.push(...tierBenefits.BRONZE.map(b => ({ ...b, tier: 'BRONZE' })));
     }
@@ -243,19 +239,17 @@ export default function Demo() {
       <Header />
       
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
-        {/* Hero Section - User Achievement */}
         <div className="text-center space-y-6">
           <Badge className="mx-auto bg-primary/10 text-primary border-primary/20">
             Your OmniPass Status
           </Badge>
           
-          {/* User Tier Display */}
           <div className="space-y-4">
             <div className={`w-24 h-24 mx-auto bg-gradient-to-r ${getTierColor(userTier)} rounded-3xl flex items-center justify-center`}>
               <TierIcon className="w-12 h-12 text-white" />
             </div>
             
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent whitespace-normal break-words px-4">
               Congratulations! 🎉
             </h1>
             
@@ -280,7 +274,6 @@ export default function Demo() {
           </p>
         </div>
 
-        {/* Unlocked Benefits */}
         <Card className="glass border-0">
           <CardHeader className="text-center pb-8">
             <div className="flex items-center justify-center space-x-3 mb-4">
@@ -323,7 +316,6 @@ export default function Demo() {
           </CardContent>
         </Card>
 
-        {/* Next Tier Preview - UPDATED COLORS */}
         {nextTierBenefits.length > 0 && (
           <Card className="glass border-0">
             <CardHeader className="text-center pb-8">
@@ -378,7 +370,6 @@ export default function Demo() {
           </Card>
         )}
 
-        {/* Call to Action - UPDATED BUTTON LAYOUT */}
         <Card className="glass border-0 text-center">
           <CardContent className="py-12 space-y-6">
             <h2 className="text-3xl font-bold">Start Using Your Benefits</h2>
