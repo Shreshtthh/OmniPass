@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Award, Star, Crown, Zap, Shield, TrendingUp, CheckCircle, ArrowRight, Gift, Coins, Users, Lock, Unlock, Loader } from 'lucide-react';
+import { Award, Star, Crown, Zap, Shield, TrendingUp, CheckCircle, Gift, Lock, Unlock, Loader } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { OmniPassAPI, AnalysisResponse } from '@/lib/api';
 import { useSearchParams } from 'react-router-dom';
@@ -15,99 +15,104 @@ export default function Demo() {
   
   const walletAddress = searchParams.get('address') || '0x92CbB44A94BEf56944929e25077F3A4F4F7B95E6';
   
-  const tierBenefits = {
-    BRONZE: [
-      {
-        protocol: 'Aave',
-        icon: '🏦',
-        benefit: 'Basic Rate Discount',
-        description: '2% discount on borrowing rates',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'Community',
-        icon: '👥',
-        benefit: 'Discord Access',
-        description: 'Join our Bronze tier community',
-        status: 'unlocked'
-      }
-    ],
-    SILVER: [
-      {
-        protocol: 'Aave',
-        icon: '🏦',
-        benefit: 'Enhanced Borrowing',
-        description: '5% lower collateral requirements',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'Uniswap',
-        icon: '🦄',
-        benefit: 'LP Pool Access',
-        description: 'Access to mid-tier liquidity pools',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'AirdropHub',
-        icon: '🎁',
-        benefit: 'Priority Allocation',
-        description: 'Higher chances in token airdrops',
-        status: 'unlocked'
-      }
-    ],
-    GOLD: [
-      {
-        protocol: 'Aave',
-        icon: '🏦',
-        benefit: 'Premium Lending',
-        description: '10% lower collateral + flash loan access',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'Uniswap',
-        icon: '🦄',
-        benefit: 'Exclusive Pools',
-        description: 'Access to high-yield premium pools',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'AirdropHub',
-        icon: '🎁',
-        benefit: 'Guaranteed Allocation',
-        description: 'Guaranteed spot in major airdrops',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'DeFiGame',
-        icon: '⚔️',
-        benefit: 'Legendary NFT',
-        description: 'Exclusive in-game asset unlocked',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'Compound',
-        icon: '💰',
-        benefit: 'VIP Rewards',
-        description: '25% bonus on COMP rewards',
-        status: 'unlocked'
-      }
-    ],
-    PLATINUM: [
-      {
-        protocol: 'All Protocols',
-        icon: '👑',
-        benefit: 'White Glove Service',
-        description: 'Dedicated support + custom strategies',
-        status: 'unlocked'
-      },
-      {
-        protocol: 'Institutional',
-        icon: '🏛️',
-        benefit: 'Direct Partnerships',
-        description: 'Private investment opportunities',
-        status: 'unlocked'
-      }
-    ]
+  // Define all benefits with their unlock tiers
+  const allBenefits = [
+    // Bronze Tier Benefits
+    {
+      protocol: 'Aave',
+      icon: '🏦',
+      benefit: 'Basic Rate Discount',
+      description: '2% discount on borrowing rates',
+      unlockTier: 'BRONZE'
+    },
+    {
+      protocol: 'Community',
+      icon: '👥',
+      benefit: 'Discord Access',
+      description: 'Join our Bronze tier community',
+      unlockTier: 'BRONZE'
+    },
+    // Silver Tier Benefits
+    {
+      protocol: 'Aave',
+      icon: '🏦',
+      benefit: 'Enhanced Borrowing',
+      description: '5% lower collateral requirements',
+      unlockTier: 'SILVER'
+    },
+    {
+      protocol: 'Uniswap',
+      icon: '🦄',
+      benefit: 'LP Pool Access',
+      description: 'Access to mid-tier liquidity pools',
+      unlockTier: 'SILVER'
+    },
+    {
+      protocol: 'AirdropHub',
+      icon: '🎁',
+      benefit: 'Priority Allocation',
+      description: 'Higher chances in token airdrops',
+      unlockTier: 'SILVER'
+    },
+    // Gold Tier Benefits
+    {
+      protocol: 'Aave',
+      icon: '🏦',
+      benefit: 'Premium Lending',
+      description: '10% lower collateral + flash loan access',
+      unlockTier: 'GOLD'
+    },
+    {
+      protocol: 'Uniswap',
+      icon: '🦄',
+      benefit: 'Exclusive Pools',
+      description: 'Access to high-yield premium pools',
+      unlockTier: 'GOLD'
+    },
+    {
+      protocol: 'AirdropHub',
+      icon: '🎁',
+      benefit: 'Guaranteed Allocation',
+      description: 'Guaranteed spot in major airdrops',
+      unlockTier: 'GOLD'
+    },
+    {
+      protocol: 'DeFiGame',
+      icon: '⚔️',
+      benefit: 'Legendary NFT',
+      description: 'Exclusive in-game asset unlocked',
+      unlockTier: 'GOLD'
+    },
+    {
+      protocol: 'Compound',
+      icon: '💰',
+      benefit: 'VIP Rewards',
+      description: '25% bonus on COMP rewards',
+      unlockTier: 'GOLD'
+    },
+    // Platinum Tier Benefits
+    {
+      protocol: 'All Protocols',
+      icon: '👑',
+      benefit: 'White Glove Service',
+      description: 'Dedicated support + custom strategies',
+      unlockTier: 'PLATINUM'
+    },
+    {
+      protocol: 'Institutional',
+      icon: '🏛️',
+      benefit: 'Direct Partnerships',
+      description: 'Private investment opportunities',
+      unlockTier: 'PLATINUM'
+    }
+  ];
+
+  // Define tier hierarchy for comparison
+  const tierRank = { 
+    'BRONZE': 1, 
+    'SILVER': 2, 
+    'GOLD': 3, 
+    'PLATINUM': 4 
   };
 
   useEffect(() => {
@@ -148,37 +153,19 @@ export default function Demo() {
     }
   };
 
-  const getCurrentTierBenefits = () => {
-    if (!analysis?.data?.accessLevel?.tier) return [];
-    
-    const userTier = analysis.data.accessLevel.tier;
-    const allBenefits = [];
-    
-    if (['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'].includes(userTier)) {
-      allBenefits.push(...tierBenefits.BRONZE.map(b => ({ ...b, tier: 'BRONZE' })));
-    }
-    if (['SILVER', 'GOLD', 'PLATINUM'].includes(userTier)) {
-      allBenefits.push(...tierBenefits.SILVER.map(b => ({ ...b, tier: 'SILVER' })));
-    }
-    if (['GOLD', 'PLATINUM'].includes(userTier)) {
-      allBenefits.push(...tierBenefits.GOLD.map(b => ({ ...b, tier: 'GOLD' })));
-    }
-    if (userTier === 'PLATINUM') {
-      allBenefits.push(...tierBenefits.PLATINUM.map(b => ({ ...b, tier: 'PLATINUM' })));
-    }
-    
-    return allBenefits;
+  // Check if user has unlocked a specific benefit
+  const isBenefitUnlocked = (benefitTier: string, userTier: string) => {
+    return tierRank[userTier] >= tierRank[benefitTier];
   };
 
-  const getNextTierBenefits = () => {
-    if (!analysis?.data?.accessLevel?.tier) return [];
-    
-    const userTier = analysis.data.accessLevel.tier;
-    if (userTier === 'BRONZE') return tierBenefits.SILVER.map(b => ({ ...b, tier: 'SILVER', status: 'locked' }));
-    if (userTier === 'SILVER') return tierBenefits.GOLD.map(b => ({ ...b, tier: 'GOLD', status: 'locked' }));
-    if (userTier === 'GOLD') return tierBenefits.PLATINUM.map(b => ({ ...b, tier: 'PLATINUM', status: 'locked' }));
-    return [];
-  };
+  // Filter benefits into unlocked and locked
+  const unlockedBenefits = allBenefits.filter(benefit => 
+    isBenefitUnlocked(benefit.unlockTier, analysis?.data?.accessLevel?.tier || 'BRONZE')
+  );
+  
+  const lockedBenefits = allBenefits.filter(benefit => 
+    !isBenefitUnlocked(benefit.unlockTier, analysis?.data?.accessLevel?.tier || 'BRONZE')
+  );
 
   if (loading) {
     return (
@@ -230,8 +217,6 @@ export default function Demo() {
   }
 
   const userTier = analysis.data.accessLevel.tier;
-  const currentBenefits = getCurrentTierBenefits();
-  const nextTierBenefits = getNextTierBenefits();
   const TierIcon = getTierIcon(userTier);
 
   return (
@@ -239,6 +224,7 @@ export default function Demo() {
       <Header />
       
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
+        {/* Hero Section */}
         <div className="text-center space-y-6">
           <Badge className="mx-auto bg-primary/10 text-primary border-primary/20">
             Your OmniPass Status
@@ -274,107 +260,98 @@ export default function Demo() {
           </p>
         </div>
 
+        {/* All Benefits - Single Section */}
         <Card className="glass border-0">
           <CardHeader className="text-center pb-8">
-            <div className="flex items-center justify-center space-x-3 mb-4">
-              <Unlock className="w-8 h-8 text-green-500" />
-              <CardTitle className="text-3xl font-bold">
-                Your Unlocked Benefits
-              </CardTitle>
-            </div>
+            <CardTitle className="text-3xl font-bold">
+              OmniPass Benefits Overview
+            </CardTitle>
             <p className="text-muted-foreground text-lg">
-              These exclusive perks are now active for your wallet across the DeFi ecosystem
+              All available benefits across tiers - unlocked and locked based on your current tier
             </p>
           </CardHeader>
           
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {currentBenefits.map((benefit, index) => (
-                <Card key={index} className="border border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-800">
-                  <CardContent className="p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{benefit.icon}</span>
-                        <div>
-                          <h4 className="font-semibold text-foreground">{benefit.protocol}</h4>
-                          <Badge className={`text-xs bg-gradient-to-r ${getTierColor(benefit.tier)} text-white`}>
-                            {benefit.tier}
-                          </Badge>
-                        </div>
-                      </div>
-                      <CheckCircle className="w-6 h-6 text-green-500" />
-                    </div>
-                    
-                    <div>
-                      <h5 className="font-medium text-green-700 dark:text-green-300">{benefit.benefit}</h5>
-                      <p className="text-sm text-muted-foreground mt-1">{benefit.description}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {nextTierBenefits.length > 0 && (
-          <Card className="glass border-0">
-            <CardHeader className="text-center pb-8">
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <Lock className="w-8 h-8 text-primary" />
-                <CardTitle className="text-3xl font-bold">
-                  Unlock More Benefits
-                </CardTitle>
-              </div>
-              <p className="text-muted-foreground text-lg">
-                Continue growing your DeFi reputation to unlock these premium benefits
-              </p>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {nextTierBenefits.slice(0, 6).map((benefit, index) => (
-                  <Card key={index} className="border border-primary/40 bg-primary/10 dark:bg-primary/20 dark:border-primary/60">
+              {allBenefits.map((benefit, index) => {
+                const unlocked = isBenefitUnlocked(benefit.unlockTier, userTier);
+                return (
+                  <Card 
+                    key={index} 
+                    className={
+                      unlocked 
+                        ? "border border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-800"
+                        : "border border-primary/40 bg-primary/10 dark:bg-primary/20 dark:border-primary/60"
+                    }
+                  >
                     <CardContent className="p-6 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <span className="text-2xl">{benefit.icon}</span>
                           <div>
                             <h4 className="font-semibold text-foreground">{benefit.protocol}</h4>
-                            <Badge className={`text-xs bg-gradient-to-r ${getTierColor(benefit.tier)} text-white`}>
-                              {benefit.tier}
+                            <Badge className={`text-xs bg-gradient-to-r ${getTierColor(benefit.unlockTier)} text-white`}>
+                              {benefit.unlockTier}
                             </Badge>
                           </div>
                         </div>
-                        <Lock className="w-6 h-6 text-primary" />
+                        {unlocked ? (
+                          <CheckCircle className="w-6 h-6 text-green-500" />
+                        ) : (
+                          <Lock className="w-6 h-6 text-primary" />
+                        )}
                       </div>
                       
                       <div>
-                        <h5 className="font-medium text-primary">{benefit.benefit}</h5>
+                        <h5 className={`font-medium ${
+                          unlocked 
+                            ? "text-green-700 dark:text-green-300" 
+                            : "text-primary"
+                        }`}>
+                          {benefit.benefit}
+                        </h5>
                         <p className="text-sm text-muted-foreground mt-1">{benefit.description}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {unlocked ? "✅ Available now" : `🔒 Requires ${benefit.unlockTier} tier`}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="text-center mt-8">
-                <Button 
-                  className="btn-gradient text-lg px-8 py-3 min-w-[200px]" 
-                  onClick={() => window.location.href = '/'}
-                >
-                  Improve My Score
-                  <TrendingUp className="w-5 h-5 ml-2" />
-                </Button>
+        {/* Summary Stats */}
+        <Card className="glass border-0">
+          <CardContent className="py-8">
+            <div className="grid md:grid-cols-3 gap-8 text-center">
+              <div>
+                <h3 className="text-2xl font-bold text-green-600">{unlockedBenefits.length}</h3>
+                <p className="text-muted-foreground">Benefits Unlocked</p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div>
+                <h3 className="text-2xl font-bold text-primary">{lockedBenefits.length}</h3>
+                <p className="text-muted-foreground">Benefits To Unlock</p>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-accent">{allBenefits.length}</h3>
+                <p className="text-muted-foreground">Total Benefits Available</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Call to Action */}
         <Card className="glass border-0 text-center">
           <CardContent className="py-12 space-y-6">
-            <h2 className="text-3xl font-bold">Start Using Your Benefits</h2>
+            <h2 className="text-3xl font-bold">Ready to Unlock More?</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Your {userTier} tier credentials are ready to use. Connect to partner protocols and claim your exclusive benefits.
+              {lockedBenefits.length > 0 
+                ? `You have ${lockedBenefits.length} more benefits waiting to be unlocked. Improve your DeFi activity to advance to the next tier!`
+                : "Congratulations! You've unlocked all available benefits. You're at the top tier!"
+              }
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -387,7 +364,8 @@ export default function Demo() {
                 className="glass border-white/20 text-lg px-8 py-3 min-w-[200px]" 
                 onClick={() => window.location.href = '/'}
               >
-                Analyze Another Wallet
+                {lockedBenefits.length > 0 ? "Improve My Score" : "Analyze Another Wallet"}
+                <TrendingUp className="w-5 h-5 ml-2" />
               </Button>
             </div>
           </CardContent>
